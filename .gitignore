@@ -1,0 +1,12 @@
+.DS_Store
+
+# SwiftPM build output
+.build/
+
+# Xcode / Swift debug symbols
+*.dSYM/
+*.dSYM.zip
+
+# Local logs and temporary files
+*.log
+tmp/
