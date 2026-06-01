@@ -5,26 +5,23 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD_BINARY_PATH="$ROOT_DIR/.build/release/focusmouse"
 INSTALL_BINARY_PATH="$HOME/.local/bin/focusmouse"
 PLIST_PATH="$HOME/Library/LaunchAgents/com.edwinklasson.focusmouse.plist"
-LOG_DIR="$HOME/Library/Logs/focusmouse"
-SIGNING_IDENTITY="${FOCUSMOUSE_SIGNING_IDENTITY:-}"
+LABEL="com.edwinklasson.focusmouse"
+DOMAIN_TARGET="gui/$(id -u)"
+SERVICE_TARGET="$DOMAIN_TARGET/$LABEL"
+STDOUT_PATH="/tmp/focusmouse_$(id -un).out.log"
+STDERR_PATH="/tmp/focusmouse_$(id -un).err.log"
+SIGNING_IDENTITY="${FOCUSMOUSE_SIGNING_IDENTITY:-focusmouse-cert}"
 
 cd "$ROOT_DIR"
 swift build -c release
 
 if [ -z "$SIGNING_IDENTITY" ]; then
-  SIGNING_IDENTITY=$(
-    security find-identity -v -p codesigning |
-      awk -F '"' '/^[[:space:]]*[0-9]+\)/ { print $2; exit }'
-  )
-fi
-
-if [ -z "$SIGNING_IDENTITY" ]; then
   echo "No valid code signing identity found."
-  echo "Create one in Xcode or Keychain Access, then run this script again."
+  echo "Create focusmouse-cert in Keychain Access, then run this script again."
   exit 1
 fi
 
-mkdir -p "$(dirname "$PLIST_PATH")" "$(dirname "$INSTALL_BINARY_PATH")" "$LOG_DIR"
+mkdir -p "$(dirname "$PLIST_PATH")" "$(dirname "$INSTALL_BINARY_PATH")"
 cp "$BUILD_BINARY_PATH" "$INSTALL_BINARY_PATH"
 chmod 755 "$INSTALL_BINARY_PATH"
 xattr -d com.apple.quarantine "$INSTALL_BINARY_PATH" 2>/dev/null || true
@@ -37,7 +34,7 @@ cat > "$PLIST_PATH" <<PLIST
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.edwinklasson.focusmouse</string>
+  <string>$LABEL</string>
 
   <key>ProgramArguments</key>
   <array>
@@ -48,16 +45,18 @@ cat > "$PLIST_PATH" <<PLIST
   <true/>
 
   <key>StandardOutPath</key>
-  <string>$LOG_DIR/stdout.log</string>
+  <string>$STDOUT_PATH</string>
 
   <key>StandardErrorPath</key>
-  <string>$LOG_DIR/stderr.log</string>
+  <string>$STDERR_PATH</string>
 </dict>
 </plist>
 PLIST
 
-launchctl unload "$PLIST_PATH" 2>/dev/null || true
-launchctl load "$PLIST_PATH"
+launchctl bootout "$DOMAIN_TARGET" "$PLIST_PATH" 2>/dev/null || true
+launchctl enable "$SERVICE_TARGET"
+launchctl bootstrap "$DOMAIN_TARGET" "$PLIST_PATH"
+launchctl kickstart -k "$SERVICE_TARGET"
 
 cat <<EOF
 Installed launch agent:
@@ -76,6 +75,6 @@ If an older focusmouse entry already exists there, remove it first, then add
 the binary above again.
 
 Logs:
-$LOG_DIR/stdout.log
-$LOG_DIR/stderr.log
+$STDOUT_PATH
+$STDERR_PATH
 EOF

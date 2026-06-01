@@ -1,6 +1,11 @@
 # FocusMouse
 
-Tiny macOS focus-follows-mouse daemon using public Accessibility APIs only.
+Tiny macOS focus-follows-mouse daemon for personal use.
+
+FocusMouse uses private macOS SkyLight APIs for the actual no-raise focus
+operation, plus public APIs for process trust checks and window metadata. That
+matches the behavior needed for focus-follows-mouse, but it also means the tool
+can break after macOS updates.
 
 ## Build
 
@@ -14,60 +19,57 @@ swift build
 .build/debug/focusmouse
 ```
 
-On first run, macOS should prompt for Accessibility permission. Grant permission
-in System Settings > Privacy & Security > Accessibility, then run the daemon
-again.
+When run as a daemon, FocusMouse needs Accessibility permission. Grant
+permission to the stable installed binary in System Settings > Privacy &
+Security > Accessibility.
 
 ## Start at Login
 
-Start the current `focusmouse` binary as a per-user launchd service:
+The preferred setup is to install a signed release binary into
+`~/.local/bin/focusmouse`, then manage it through launchd:
 
 ```sh
-.build/debug/focusmouse --start-service
+sh scripts/install-launch-agent.sh
 ```
 
-If the launch agent plist does not exist yet, this creates:
+By default, the install script signs with the local code-signing identity named
+`focusmouse-cert`. To force a different identity:
+
+```sh
+FOCUSMOUSE_SIGNING_IDENTITY="Apple Development: your@email" sh scripts/install-launch-agent.sh
+```
+
+After installation, manage the service with:
+
+```sh
+focusmouse --start-service
+focusmouse --restart-service
+focusmouse --stop-service
+```
+
+The launch agent lives at:
 
 ```text
 ~/Library/LaunchAgents/com.edwinklasson.focusmouse.plist
 ```
 
-The generated service runs the same `focusmouse` binary with no arguments.
-Logs are written to:
+The service logs to:
 
 ```text
 /tmp/focusmouse_$USER.out.log
 /tmp/focusmouse_$USER.err.log
 ```
 
-Restart or stop the service:
-
-```sh
-.build/debug/focusmouse --restart-service
-.build/debug/focusmouse --stop-service
-```
-
-Install a per-user launch agent:
-
-```sh
-sh scripts/install-launch-agent.sh
-```
-
-This builds the release binary, copies it to `~/.local/bin/focusmouse`, signs it
-with the first valid code-signing identity in your login keychain, and registers
-that stable copy with `launchd`.
-
-To force a specific signing identity:
-
-```sh
-FOCUSMOUSE_SIGNING_IDENTITY="Apple Development: your@email" sh scripts/install-launch-agent.sh
-```
-
-If Accessibility permission is still missing, manually add this binary in System
-Settings > Privacy & Security > Accessibility:
+If Accessibility permission is missing, manually add this binary:
 
 ```text
 /Users/edwinklasson/.local/bin/focusmouse
+```
+
+In:
+
+```text
+System Settings > Privacy & Security > Accessibility
 ```
 
 If an older `focusmouse` entry is already present, remove it with the minus
@@ -81,9 +83,10 @@ sh scripts/uninstall-launch-agent.sh
 
 ## Behavior
 
-- Polls the pointer roughly every 75 ms.
-- Focuses normal windows after roughly 120 ms of hover.
+- Polls the pointer roughly every 12 ms.
+- Focuses normal windows after roughly 12 ms of hover.
 - Does not intentionally raise windows.
 - Does not refocus while a mouse button is held down.
-- Ignores common non-normal targets such as Dock, menu bar, dialogs, sheets,
-  floating windows, and minimized windows.
+- Does not undo Alt-Tab until the mouse moves.
+- Ignores common non-normal targets such as Dock, menu bar, and nonzero-layer
+  system windows.
