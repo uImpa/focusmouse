@@ -8,17 +8,12 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "focusmouse", targets: ["focusmouse"]),
-        .executable(name: "focusprobe", targets: ["focusprobe"])
+        .executable(name: "focusmouse", targets: ["focusmouse"])
     ],
     targets: [
         .target(name: "PrivateFocus"),
         .executableTarget(
             name: "focusmouse",
-            dependencies: ["PrivateFocus"]
-        ),
-        .executableTarget(
-            name: "focusprobe",
             dependencies: ["PrivateFocus"]
         )
     ]
