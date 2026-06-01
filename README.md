@@ -20,6 +20,33 @@ again.
 
 ## Start at Login
 
+Start the current `focusmouse` binary as a per-user launchd service:
+
+```sh
+.build/debug/focusmouse --start-service
+```
+
+If the launch agent plist does not exist yet, this creates:
+
+```text
+~/Library/LaunchAgents/com.edwinklasson.focusmouse.plist
+```
+
+The generated service runs the same `focusmouse` binary with no arguments.
+Logs are written to:
+
+```text
+/tmp/focusmouse_$USER.out.log
+/tmp/focusmouse_$USER.err.log
+```
+
+Restart or stop the service:
+
+```sh
+.build/debug/focusmouse --restart-service
+.build/debug/focusmouse --stop-service
+```
+
 Install a per-user launch agent:
 
 ```sh
