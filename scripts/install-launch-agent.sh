@@ -4,28 +4,25 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD_BINARY_PATH="$ROOT_DIR/.build/release/focusmouse"
 INSTALL_BINARY_PATH="$HOME/.local/bin/focusmouse"
-PLIST_PATH="$HOME/Library/LaunchAgents/com.edwinklasson.focusmouse.plist"
-LABEL="com.edwinklasson.focusmouse"
+LABEL="com.github.uimpa.focusmouse"
+LEGACY_LABEL="com.edwinklasson.focusmouse"
+PLIST_PATH="$HOME/Library/LaunchAgents/$LABEL.plist"
+LEGACY_PLIST_PATH="$HOME/Library/LaunchAgents/$LEGACY_LABEL.plist"
 DOMAIN_TARGET="gui/$(id -u)"
 SERVICE_TARGET="$DOMAIN_TARGET/$LABEL"
+LEGACY_SERVICE_TARGET="$DOMAIN_TARGET/$LEGACY_LABEL"
 STDOUT_PATH="/tmp/focusmouse_$(id -un).out.log"
 STDERR_PATH="/tmp/focusmouse_$(id -un).err.log"
-SIGNING_IDENTITY="${FOCUSMOUSE_SIGNING_IDENTITY:-focusmouse-cert}"
+SIGNING_IDENTITY="${FOCUSMOUSE_SIGNING_IDENTITY:--}"
 
 cd "$ROOT_DIR"
 swift build -c release
-
-if [ -z "$SIGNING_IDENTITY" ]; then
-  echo "No valid code signing identity found."
-  echo "Create focusmouse-cert in Keychain Access, then run this script again."
-  exit 1
-fi
 
 mkdir -p "$(dirname "$PLIST_PATH")" "$(dirname "$INSTALL_BINARY_PATH")"
 cp "$BUILD_BINARY_PATH" "$INSTALL_BINARY_PATH"
 chmod 755 "$INSTALL_BINARY_PATH"
 xattr -d com.apple.quarantine "$INSTALL_BINARY_PATH" 2>/dev/null || true
-codesign --force --sign "$SIGNING_IDENTITY" --identifier com.edwinklasson.focusmouse "$INSTALL_BINARY_PATH"
+codesign --force --sign "$SIGNING_IDENTITY" --identifier "$LABEL" "$INSTALL_BINARY_PATH"
 
 cat > "$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -53,6 +50,9 @@ cat > "$PLIST_PATH" <<PLIST
 </plist>
 PLIST
 
+launchctl bootout "$DOMAIN_TARGET" "$LEGACY_PLIST_PATH" 2>/dev/null || true
+launchctl disable "$LEGACY_SERVICE_TARGET" 2>/dev/null || true
+rm -f "$LEGACY_PLIST_PATH"
 launchctl bootout "$DOMAIN_TARGET" "$PLIST_PATH" 2>/dev/null || true
 launchctl enable "$SERVICE_TARGET"
 launchctl bootstrap "$DOMAIN_TARGET" "$PLIST_PATH"

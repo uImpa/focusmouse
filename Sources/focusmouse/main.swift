@@ -239,7 +239,7 @@ private func logAlways(_ message: String) {
 }
 
 private enum Service {
-    static let label = "com.edwinklasson.focusmouse"
+    static let label = "com.github.uimpa.focusmouse"
 
     static var plistPath: String {
         "\(NSHomeDirectory())/Library/LaunchAgents/\(label).plist"

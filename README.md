@@ -32,12 +32,16 @@ The preferred setup is to install a signed release binary into
 sh scripts/install-launch-agent.sh
 ```
 
-By default, the install script signs with the local code-signing identity named
-`focusmouse-cert`. To force a different identity:
+By default, the install script uses ad-hoc signing, so no certificate or Apple
+Developer account is required. To use an existing code-signing identity
+instead:
 
 ```sh
 FOCUSMOUSE_SIGNING_IDENTITY="Apple Development: your@email" sh scripts/install-launch-agent.sh
 ```
+
+After reinstalling an ad-hoc signed build, macOS may require you to remove and
+re-add FocusMouse under Accessibility.
 
 After installation, manage the service with:
 
@@ -50,7 +54,7 @@ focusmouse --stop-service
 The launch agent lives at:
 
 ```text
-~/Library/LaunchAgents/com.edwinklasson.focusmouse.plist
+~/Library/LaunchAgents/com.github.uimpa.focusmouse.plist
 ```
 
 The service logs to:
