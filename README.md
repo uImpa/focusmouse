@@ -63,7 +63,7 @@ The service logs to:
 If Accessibility permission is missing, manually add this binary:
 
 ```text
-/Users/edwinklasson/.local/bin/focusmouse
+~/.local/bin/focusmouse
 ```
 
 In:
