@@ -5,12 +5,9 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BUILD_BINARY_PATH="$ROOT_DIR/.build/release/focusmouse"
 INSTALL_BINARY_PATH="$HOME/.local/bin/focusmouse"
 LABEL="com.github.uimpa.focusmouse"
-LEGACY_LABEL="com.edwinklasson.focusmouse"
 PLIST_PATH="$HOME/Library/LaunchAgents/$LABEL.plist"
-LEGACY_PLIST_PATH="$HOME/Library/LaunchAgents/$LEGACY_LABEL.plist"
 DOMAIN_TARGET="gui/$(id -u)"
 SERVICE_TARGET="$DOMAIN_TARGET/$LABEL"
-LEGACY_SERVICE_TARGET="$DOMAIN_TARGET/$LEGACY_LABEL"
 STDOUT_PATH="/tmp/focusmouse_$(id -un).out.log"
 STDERR_PATH="/tmp/focusmouse_$(id -un).err.log"
 SIGNING_IDENTITY="${FOCUSMOUSE_SIGNING_IDENTITY:--}"
@@ -58,9 +55,6 @@ cat > "$PLIST_PATH" <<PLIST
 </plist>
 PLIST
 
-launchctl bootout "$DOMAIN_TARGET" "$LEGACY_PLIST_PATH" 2>/dev/null || true
-launchctl disable "$LEGACY_SERVICE_TARGET" 2>/dev/null || true
-rm -f "$LEGACY_PLIST_PATH"
 launchctl bootout "$DOMAIN_TARGET" "$PLIST_PATH" 2>/dev/null || true
 launchctl enable "$SERVICE_TARGET"
 launchctl bootstrap "$DOMAIN_TARGET" "$PLIST_PATH"
