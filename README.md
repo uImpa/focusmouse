@@ -32,6 +32,20 @@ The preferred setup is to install a signed release binary into
 sh scripts/install-launch-agent.sh
 ```
 
+The installer places the executable in `~/.local/bin`. If `focusmouse` is not
+found afterward, add that directory to your shell PATH:
+
+```sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Verify the installation:
+
+```sh
+command -v focusmouse
+```
+
 By default, the install script uses ad-hoc signing, so no certificate or Apple
 Developer account is required. To use an existing code-signing identity
 instead:
