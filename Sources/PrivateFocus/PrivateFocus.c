@@ -268,7 +268,7 @@ int private_focus_window_without_raise(uint32_t window_id)
         return -5;
     }
 
-    if (has_previous && previous.owner_connection_id == owner_cid) {
+    if (has_previous) {
         CGError resign_error = post_key_window_event(&previous_psn, 0x02, previous_window_id);
         if (resign_error != kCGErrorSuccess) return -6;
 
