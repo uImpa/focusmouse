@@ -41,6 +41,14 @@ cat > "$PLIST_PATH" <<PLIST
   <key>RunAtLoad</key>
   <true/>
 
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+    <key>Crashed</key>
+    <true/>
+  </dict>
+
   <key>StandardOutPath</key>
   <string>$STDOUT_PATH</string>
 
