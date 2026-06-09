@@ -22,6 +22,8 @@ typedef CGError (*SLPSPostEventRecordToFn)(ProcessSerialNumber *psn, uint8_t *by
 typedef AXError (*AXUIElementGetWindowFn)(AXUIElementRef ref, uint32_t *wid);
 
 static void *skylight_handle;
+static bool load_attempted;
+static bool symbols_loaded;
 static SLSMainConnectionIDFn SLSMainConnectionID_ptr;
 static SLSGetCurrentCursorLocationFn SLSGetCurrentCursorLocation_ptr;
 static SLSFindWindowAndOwnerFn SLSFindWindowAndOwner_ptr;
@@ -100,7 +102,8 @@ static uint32_t frontmost_window_for_pid(pid_t pid)
 
 static bool private_focus_load(void)
 {
-    if (skylight_handle) return true;
+    if (load_attempted) return symbols_loaded;
+    load_attempted = true;
 
     skylight_handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY);
     if (!skylight_handle) return false;
@@ -117,17 +120,18 @@ static bool private_focus_load(void)
     SLPSPostEventRecordTo_ptr = (SLPSPostEventRecordToFn) load_symbol("SLPSPostEventRecordTo");
     AXUIElementGetWindow_ptr = (AXUIElementGetWindowFn) dlsym(RTLD_DEFAULT, "_AXUIElementGetWindow");
 
-    return SLSMainConnectionID_ptr &&
-           SLSGetCurrentCursorLocation_ptr &&
-           SLSFindWindowAndOwner_ptr &&
-           SLSGetWindowOwner_ptr &&
-           SLSGetConnectionPSN_ptr &&
-           SLSConnectionGetPID_ptr &&
-           SLPSGetFrontProcess_ptr &&
-           SLSGetConnectionIDForPSN_ptr &&
-           SLPSSetFrontProcessWithOptions_ptr &&
-           SLPSPostEventRecordTo_ptr &&
-           AXUIElementGetWindow_ptr;
+    symbols_loaded = SLSMainConnectionID_ptr &&
+                     SLSGetCurrentCursorLocation_ptr &&
+                     SLSFindWindowAndOwner_ptr &&
+                     SLSGetWindowOwner_ptr &&
+                     SLSGetConnectionPSN_ptr &&
+                     SLSConnectionGetPID_ptr &&
+                     SLPSGetFrontProcess_ptr &&
+                     SLSGetConnectionIDForPSN_ptr &&
+                     SLPSSetFrontProcessWithOptions_ptr &&
+                     SLPSPostEventRecordTo_ptr &&
+                     AXUIElementGetWindow_ptr;
+    return symbols_loaded;
 }
 
 int private_focus_window_under_mouse(PrivateFocusWindowInfo *info)
@@ -282,72 +286,4 @@ int private_focus_window_without_raise(uint32_t window_id)
     if (key_error != kCGErrorSuccess) return -8;
 
     return 0;
-}
-
-int private_focus_window_with_raise(uint32_t window_id)
-{
-    int result = private_focus_window_without_raise(window_id);
-    if (result != 0) return result;
-
-    AXUIElementRef system = AXUIElementCreateSystemWide();
-    if (!system) return -6;
-
-    CGPoint point = CGPointZero;
-    CGEventRef event = CGEventCreate(NULL);
-    if (event) {
-        point = CGEventGetLocation(event);
-        CFRelease(event);
-    } else {
-        CFRelease(system);
-        return -7;
-    }
-
-    AXUIElementRef element = 0;
-    AXError copy_error = AXUIElementCopyElementAtPosition(system, point.x, point.y, &element);
-    CFRelease(system);
-
-    if (copy_error != kAXErrorSuccess || !element) {
-        return -8;
-    }
-
-    AXUIElementRef window = 0;
-    CFTypeRef window_value = 0;
-    AXError window_error = AXUIElementCopyAttributeValue(element, kAXWindowAttribute, &window_value);
-    if (window_error == kAXErrorSuccess && window_value) {
-        window = (AXUIElementRef) window_value;
-    } else {
-        CFTypeRef parent = 0;
-        AXUIElementRef current = element;
-        for (int i = 0; i < 12; ++i) {
-            if (AXUIElementCopyAttributeValue(current, kAXParentAttribute, &parent) != kAXErrorSuccess || !parent) {
-                break;
-            }
-
-            CFTypeRef role = 0;
-            bool is_window = false;
-            if (AXUIElementCopyAttributeValue((AXUIElementRef) parent, kAXRoleAttribute, &role) == kAXErrorSuccess && role) {
-                is_window = CFEqual(role, kAXWindowRole);
-                CFRelease(role);
-            }
-
-            if (current != element) CFRelease(current);
-            current = (AXUIElementRef) parent;
-
-            if (is_window) {
-                window = current;
-                break;
-            }
-        }
-    }
-
-    if (!window) {
-        CFRelease(element);
-        return -9;
-    }
-
-    AXError raise_error = AXUIElementPerformAction(window, kAXRaiseAction);
-    if (window != element) CFRelease(window);
-    CFRelease(element);
-
-    return raise_error == kAXErrorSuccess ? 0 : -10;
 }

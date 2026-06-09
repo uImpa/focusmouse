@@ -12,6 +12,5 @@ typedef struct PrivateFocusWindowInfo {
 int private_focus_window_under_mouse(PrivateFocusWindowInfo *info);
 int private_focus_front_window(PrivateFocusWindowInfo *info);
 int private_focus_window_without_raise(uint32_t window_id);
-int private_focus_window_with_raise(uint32_t window_id);
 
 #endif

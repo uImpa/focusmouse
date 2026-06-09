@@ -20,10 +20,8 @@ private let ignoredApplicationNames = Set([
 
 struct WindowCandidate {
     let windowID: UInt32
-    let ownerConnectionID: Int32
     let pid: pid_t
     let appName: String
-    let title: String?
 }
 
 private struct WindowMetadata {
@@ -77,7 +75,7 @@ final class FocusMouseDaemon {
 
         if isSameWindow(candidate, pendingCandidate) {
             if Date().timeIntervalSince(pendingSince) >= hoverDelay {
-                _ = focus(candidate)
+                focus(candidate)
                 clearPendingCandidate()
             }
         } else {
@@ -88,7 +86,6 @@ final class FocusMouseDaemon {
 
     private func clearPendingCandidate() {
         pendingCandidate = nil
-        pendingSince = Date.distantPast
     }
 
     private func candidateUnderMouse() -> WindowCandidate? {
@@ -131,17 +128,14 @@ final class FocusMouseDaemon {
         debug("candidate window=\(windowID) pid=\(pid) app=\(metadata.appName) title=\(metadata.title ?? "<untitled>")")
         return WindowCandidate(
             windowID: windowID,
-            ownerConnectionID: info.owner_connection_id,
             pid: pid,
-            appName: metadata.appName,
-            title: metadata.title
+            appName: metadata.appName
         )
     }
 
-    private func focus(_ candidate: WindowCandidate) -> Bool {
+    private func focus(_ candidate: WindowCandidate) {
         let result = private_focus_window_without_raise(candidate.windowID)
         debug("focus window=\(candidate.windowID) pid=\(candidate.pid) app=\(candidate.appName) result=\(result)")
-        return result == 0
     }
 
     private func isFrontWindow(_ candidate: WindowCandidate) -> Bool {
@@ -348,14 +342,10 @@ private enum Service {
             return invokedPath.standardizingPath
         }
 
-        return URL(fileURLWithPath: fileManagerCurrentDirectory())
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent(CommandLine.arguments[0])
             .standardizedFileURL
             .path
-    }
-
-    private static func fileManagerCurrentDirectory() -> String {
-        FileManager.default.currentDirectoryPath
     }
 
     private static func plistContents(executablePath: String) -> String {
@@ -373,15 +363,10 @@ private enum Service {
             <string>\(xmlEscaped(executablePath))</string>
           </array>
 
-          <key>RunAtLoad</key>
-          <true/>
-
           <key>KeepAlive</key>
           <dict>
             <key>SuccessfulExit</key>
             <false/>
-            <key>Crashed</key>
-            <true/>
           </dict>
 
           <key>StandardOutPath</key>
