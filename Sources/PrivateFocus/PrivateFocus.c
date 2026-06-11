@@ -63,6 +63,34 @@ static uint32_t focused_window_for_pid(pid_t pid)
     return window_error == kAXErrorSuccess ? window_id : 0;
 }
 
+static bool focus_window_via_ax(pid_t pid, uint32_t window_id)
+{
+    if (!AXUIElementGetWindow_ptr || pid <= 0) return false;
+
+    AXUIElementRef app = AXUIElementCreateApplication(pid);
+    if (!app) return false;
+
+    CFArrayRef windows = 0;
+    bool focused = false;
+    if (AXUIElementCopyAttributeValue(app, kAXWindowsAttribute, (CFTypeRef *) &windows) == kAXErrorSuccess && windows) {
+        CFIndex count = CFArrayGetCount(windows);
+        for (CFIndex i = 0; i < count; ++i) {
+            AXUIElementRef window = (AXUIElementRef) CFArrayGetValueAtIndex(windows, i);
+            uint32_t candidate_id = 0;
+            if (AXUIElementGetWindow_ptr(window, &candidate_id) != kAXErrorSuccess) continue;
+            if (candidate_id != window_id) continue;
+
+            focused = AXUIElementSetAttributeValue(window, kAXMainAttribute, kCFBooleanTrue) == kAXErrorSuccess
+                   && AXUIElementSetAttributeValue(window, kAXFocusedAttribute, kCFBooleanTrue) == kAXErrorSuccess;
+            break;
+        }
+        CFRelease(windows);
+    }
+
+    CFRelease(app);
+    return focused;
+}
+
 static uint32_t frontmost_window_for_pid(pid_t pid)
 {
     if (pid <= 0) return 0;
@@ -251,11 +279,22 @@ int private_focus_window_without_raise(uint32_t window_id)
         return -3;
     }
 
-    ProcessSerialNumber previous_psn = { 0, 0 };
     PrivateFocusWindowInfo previous = { 0 };
+    bool previous_valid = private_focus_front_window(&previous) == 0;
+
+    if (previous_valid && previous.owner_connection_id == owner_cid) {
+        if (previous.window_id == window_id) return 0;
+
+        pid_t pid = 0;
+        if (SLSConnectionGetPID_ptr(owner_cid, &pid) != kCGErrorSuccess) return -9;
+
+        return focus_window_via_ax(pid, window_id) ? 0 : -10;
+    }
+
+    ProcessSerialNumber previous_psn = { 0, 0 };
     uint32_t previous_window_id = 0;
     bool has_previous = false;
-    if (private_focus_front_window(&previous) == 0 && previous.owner_connection_id != owner_cid) {
+    if (previous_valid && previous.owner_connection_id != owner_cid) {
         if (SLSGetConnectionPSN_ptr(previous.owner_connection_id, &previous_psn) == kCGErrorSuccess) {
             previous_window_id = previous.window_id;
             has_previous = previous_window_id != 0;
